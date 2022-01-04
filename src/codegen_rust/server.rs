@@ -1,7 +1,6 @@
 use crate::codegen::CodeGenerator;
 use crate::{Config, Endpoint, Result, Service, Type};
 use convert_case::{Case, Casing};
-use indexmap::IndexSet;
 use std::io::Write;
 
 pub struct RustServer;
@@ -119,25 +118,16 @@ impl CodeGenerator for RustServer {
 		for endpoint in &service.endpoints {
 			write!(
 				w,
-				"async fn {}<S: {}Service",
+				"async fn {}(svc: actix_web::web::Data<dyn {}Service>, req: actix_web::web::Json<{}Request>",
 				http_endpoint_fn(service, endpoint),
 				type_name(&service.id),
-			)?;
-
-			if let Some(principal) = &endpoint.principal {
-				write!(w, ", P: HttpPrincipalResolver<{}Principal>", type_name(principal))?;
-			}
-
-			write!(
-				w,
-				">(svc: actix_web::web::Data<S>, req: actix_web::web::Json<{}Request>",
 				type_name(&endpoint.id),
 			)?;
 
-			if endpoint.principal.is_some() {
+			if let Some(principal) = &endpoint.principal {
 				write!(
 					w,
-					", resolver: actix_web::web::Data<P>, http_req: actix_web::HttpRequest"
+					", resolver: actix_web::web::Data<dyn HttpPrincipalResolver<{}Principal>>, http_req: actix_web::HttpRequest", type_name(principal),
 				)?;
 			}
 
@@ -150,46 +140,21 @@ impl CodeGenerator for RustServer {
 			write!(w, "}}")?;
 		}
 
-		let principal_ids = service
-			.endpoints
-			.iter()
-			.filter_map(|e| e.principal.clone())
-			.collect::<IndexSet<_>>();
-
-		let principal_trait_args = principal_ids
-			.iter()
-			.map(|p| {
-				format!(
-					"{}: HttpPrincipalResolver<{}Principal> + 'static",
-					type_name(p),
-					type_name(p)
-				)
-			})
-			.collect::<Vec<_>>()
-			.join(", ");
-
 		write!(
 			w,
-			"pub fn {}<S: {}Service + 'static, {}>(svc: S) -> actix_web::Scope {{",
+			"pub fn {}(svc: std::sync::Arc<dyn {}Service>) -> actix_web::Scope {{",
 			http_scope_fn(service),
 			type_name(&service.id),
-			principal_trait_args,
 		)?;
 		write!(w, "actix_web::web::scope(\"{}\")", service.id)?;
-		write!(w, ".app_data(actix_web::web::Data::new(svc))")?;
+		write!(w, ".app_data(actix_web::web::Data::from(svc))")?;
 		for endpoint in &service.endpoints {
 			write!(
 				w,
-				".service(actix_web::web::resource(\"{}\").route(actix_web::web::post().to({}::<S",
+				".service(actix_web::web::resource(\"{}\").route(actix_web::web::post().to({})))",
 				endpoint.id,
 				http_endpoint_fn(service, endpoint)
 			)?;
-
-			if let Some(principal) = &endpoint.principal {
-				write!(w, ", {}", type_name(principal))?;
-			}
-
-			write!(w, ">)))")?;
 		}
 		write!(w, "}}")?;
 
