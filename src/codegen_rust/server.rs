@@ -15,12 +15,8 @@ fn rust_type(t: &Type) -> String {
 	}
 }
 
-fn http_scope_fn(s: &Service) -> String {
-	format!("{}_http_scope", s.id)
-}
-
-fn http_endpoint_fn(s: &Service, e: &Endpoint) -> String {
-	format!("{}_http_handler_{}", s.id, e.id)
+fn http_endpoint_fn(e: &Endpoint) -> String {
+	format!("http_handler_{}", e.id)
 }
 
 impl CodeGenerator for RustServer {
@@ -54,6 +50,8 @@ impl CodeGenerator for RustServer {
 		write!(w, "pub use actix_web;")?;
 		write!(w, "pub use async_trait;")?;
 
+		write!(w, "pub mod core {{")?;
+
 		write!(
 			w,
 			"#[async_trait::async_trait(?Send)] pub trait HttpPrincipalResolver<P> {{"
@@ -76,14 +74,17 @@ impl CodeGenerator for RustServer {
 			write!(w, "}}")?;
 		}
 
+		write!(w, "}}")?;
 		Ok(())
 	}
 
 	fn service(&self, service: &Service, w: &mut impl Write) -> Result<()> {
+		write!(w, "pub mod {} {{", service.id)?;
+		write!(w, "use crate::core::*;")?;
+
 		write!(
 			w,
-			"#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)] pub enum {}Error {{",
-			type_name(&service.id)
+			"#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)] pub enum Error {{",
 		)?;
 		for error in &service.errors {
 			write!(w, "{},", type_name(&error.id))?;
@@ -116,11 +117,7 @@ impl CodeGenerator for RustServer {
 			write!(w, "}}")?;
 		}
 
-		write!(
-			w,
-			"#[async_trait::async_trait] pub trait {}Service {{",
-			type_name(&service.id)
-		)?;
+		write!(w, "#[async_trait::async_trait] pub trait Service {{",)?;
 		for endpoint in &service.endpoints {
 			let endpoint_type_prefix = type_name(&endpoint.id);
 			write!(
@@ -131,21 +128,15 @@ impl CodeGenerator for RustServer {
 			if let Some(principal) = &endpoint.principal {
 				write!(w, ", caller: &{}Principal", type_name(principal))?;
 			}
-			write!(
-				w,
-				") -> Result<{}Response, {}Error>;",
-				endpoint_type_prefix,
-				type_name(&service.id)
-			)?;
+			write!(w, ") -> Result<{}Response, Error>;", endpoint_type_prefix,)?;
 		}
 		write!(w, "}}")?;
 
 		for endpoint in &service.endpoints {
 			write!(
 				w,
-				"async fn {}(svc: actix_web::web::Data<dyn {}Service>, req: actix_web::web::Json<{}Request>",
-				http_endpoint_fn(service, endpoint),
-				type_name(&service.id),
+				"async fn {}(svc: actix_web::web::Data<dyn Service>, req: actix_web::web::Json<{}Request>",
+				http_endpoint_fn(endpoint),
 				type_name(&endpoint.id),
 			)?;
 
@@ -171,9 +162,7 @@ impl CodeGenerator for RustServer {
 
 		write!(
 			w,
-			"pub fn {}(svc: std::sync::Arc<dyn {}Service>) -> actix_web::Scope {{",
-			http_scope_fn(service),
-			type_name(&service.id),
+			"pub fn create_scope(svc: std::sync::Arc<dyn Service>) -> actix_web::Scope {{",
 		)?;
 		write!(w, "actix_web::web::scope(\"{}\")", service.id)?;
 		write!(w, ".app_data(actix_web::web::Data::from(svc))")?;
@@ -182,11 +171,12 @@ impl CodeGenerator for RustServer {
 				w,
 				".service(actix_web::web::resource(\"{}\").route(actix_web::web::post().to({})))",
 				endpoint.id,
-				http_endpoint_fn(service, endpoint)
+				http_endpoint_fn(endpoint)
 			)?;
 		}
 		write!(w, "}}")?;
 
+		write!(w, "}}")?;
 		Ok(())
 	}
 }

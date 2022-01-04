@@ -1,4 +1,6 @@
-use quantifun::*;
+use quantifun::auth::*;
+use quantifun::core::*;
+use quantifun::{actix_web, async_trait};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
@@ -33,18 +35,18 @@ struct MemAuthService {
 }
 
 #[async_trait::async_trait]
-impl AuthService for MemAuthService {
-	async fn register(&self, req: &RegisterRequest) -> Result<RegisterResponse, AuthError> {
+impl Service for MemAuthService {
+	async fn register(&self, req: &RegisterRequest) -> Result<RegisterResponse, Error> {
 		let mut state = self.state.lock().unwrap();
 		state.users.insert(req.email.clone(), req.password.clone());
 		Ok(RegisterResponse {})
 	}
 
-	async fn login(&self, req: &LoginRequest) -> Result<LoginResponse, AuthError> {
+	async fn login(&self, req: &LoginRequest) -> Result<LoginResponse, Error> {
 		let mut state = self.state.lock().unwrap();
 		match state.users.get(&req.email) {
 			Some(password) if password == &req.password => (),
-			_ => return Err(AuthError::InvalidCredentials),
+			_ => return Err(Error::InvalidCredentials),
 		};
 
 		let token = Uuid::new_v4().to_string();
@@ -56,7 +58,7 @@ impl AuthService for MemAuthService {
 		Ok(LoginResponse { token })
 	}
 
-	async fn test(&self, _req: &TestRequest, caller: &UserPrincipal) -> Result<TestResponse, AuthError> {
+	async fn test(&self, _req: &TestRequest, caller: &UserPrincipal) -> Result<TestResponse, Error> {
 		Ok(TestResponse {
 			principal_id: caller.id.clone(),
 		})
@@ -73,7 +75,7 @@ async fn main() -> std::io::Result<()> {
 				Arc::new(MemUserPrincipalResolver { state: state.clone() })
 					as Arc<dyn HttpPrincipalResolver<UserPrincipal>>,
 			))
-			.service(auth_http_scope(Arc::new(MemAuthService { state: state.clone() })))
+			.service(create_scope(Arc::new(MemAuthService { state: state.clone() })))
 	})
 	.bind(("0.0.0.0", 1337))?
 	.run()
