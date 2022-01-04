@@ -1,0 +1,7 @@
+project_name: quantifun
+
+principals:
+- id: user
+  attributes:
+    id: string
+    session: string
