@@ -31,7 +31,7 @@ impl CodeGenerator for RustServer {
 	fn project_files(&self, config: &Config) -> Vec<(String, String)> {
 		vec![(
 			"Cargo.toml".into(),
-			format!(include_str!("Cargo.toml"), project_name = config.project_name),
+			format!(include_str!("templates/Cargo.toml"), project_name = config.project_name),
 		)]
 	}
 
