@@ -29,20 +29,10 @@ impl CodeGenerator for RustServer {
 	}
 
 	fn project_files(&self, config: &Config) -> Vec<(String, String)> {
-		let manifest = format!(
-			r#"
-[package]
-name = "{}"
-version = "0.1.0"
-edition = "2021"
-
-[depedencies]
-async-trait = "0.1" 
-		"#,
-			config.project_name,
-		);
-
-		vec![("Cargo.toml".into(), manifest)]
+		vec![(
+			"Cargo.toml".into(),
+			format!(include_str!("Cargo.toml"), project_name = config.project_name),
+		)]
 	}
 
 	fn config(&self, config: &Config, w: &mut impl Write) -> Result<()> {
