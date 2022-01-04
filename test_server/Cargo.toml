@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 quantifun = { path = "../out/rust_server" }
+uuid = { version = "0.8", features = [ "v4" ] }

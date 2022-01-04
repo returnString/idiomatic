@@ -16,10 +16,15 @@ pub struct Endpoint {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EndpointError {
+	pub id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Service {
 	pub id: String,
-	#[serde(default)]
 	pub endpoints: Vec<Endpoint>,
+	pub errors: Vec<EndpointError>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

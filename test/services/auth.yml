@@ -1,5 +1,9 @@
 id: auth
 
+errors:
+- id: user_exists
+- id: invalid_credentials
+
 endpoints:
 - id: register
   req:
