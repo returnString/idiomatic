@@ -1,7 +1,9 @@
 use idiomatic::codegen_rust::server::RustServer;
-use idiomatic::{CodeGenerator, Config, Result, Service};
+use idiomatic::{CodeGenerator, Config, Error, Result, Service};
 use std::fs::{self, File};
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use structopt::StructOpt;
 
 fn load_services(dir: &Path) -> Result<Vec<Service>> {
@@ -39,11 +41,23 @@ fn main() -> Result<()> {
 		fs::write(codegen_proj_dir.join(name), contents)?;
 	}
 
-	let mut out_file = File::create(src_dir.join(codegen.source_file()))?;
-	codegen.config(&config, &mut out_file)?;
+	let mut out_writer = BufWriter::new(File::create(src_dir.join(codegen.source_file()))?);
+	codegen.config(&config, &mut out_writer)?;
 
 	for service in &services {
-		codegen.service(service, &mut out_file)?;
+		codegen.service(service, &mut out_writer)?;
+	}
+	out_writer.flush()?;
+
+	for (program, args) in codegen.post_commands() {
+		let status = Command::new(program)
+			.current_dir(&codegen_proj_dir)
+			.args(args)
+			.status()?;
+
+		if !status.success() {
+			return Err(Error::CommandError);
+		}
 	}
 
 	Ok(())

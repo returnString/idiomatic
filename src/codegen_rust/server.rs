@@ -35,6 +35,13 @@ impl CodeGenerator for RustServer {
 		)]
 	}
 
+	fn post_commands(&self) -> Vec<(String, Vec<String>)> {
+		vec![
+			("cargo".into(), vec!["fmt".into()]),
+			("cargo".into(), vec!["check".into()]),
+		]
+	}
+
 	fn config(&self, config: &Config, w: &mut impl Write) -> Result<()> {
 		for principal in &config.principals {
 			write!(w, "pub struct {}Principal {{", type_name(&principal.id))?;

@@ -3,5 +3,5 @@ name = "{project_name}"
 version = "0.1.0"
 edition = "2021"
 
-[depedencies]
+[dependencies]
 async-trait = "0.1"

@@ -10,6 +10,10 @@ pub trait CodeGenerator {
 		vec![]
 	}
 
+	fn post_commands(&self) -> Vec<(String, Vec<String>)> {
+		vec![]
+	}
+
 	fn config(&self, service: &Config, w: &mut impl Write) -> Result<()>;
 	fn service(&self, service: &Service, w: &mut impl Write) -> Result<()>;
 }

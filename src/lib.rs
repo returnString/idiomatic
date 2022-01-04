@@ -11,6 +11,8 @@ pub enum Error {
 	Io(#[from] std::io::Error),
 	#[error("yaml error: {0}")]
 	Yaml(#[from] serde_yaml::Error),
+	#[error("command failed")]
+	CommandError,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
