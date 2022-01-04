@@ -73,10 +73,14 @@ impl CodeGenerator for RustServer {
 			write!(w, "}}")?;
 		}
 
-		write!(w, "pub trait {}Service {{", type_name(&service.id))?;
+		write!(
+			w,
+			"#[async_trait::async_trait] pub trait {}Service {{",
+			type_name(&service.id)
+		)?;
 		for endpoint in &service.endpoints {
 			let endpoint_type_prefix = type_name(&endpoint.id);
-			write!(w, "fn {}(req: {}Request", endpoint.id, endpoint_type_prefix)?;
+			write!(w, "async fn {}(req: {}Request", endpoint.id, endpoint_type_prefix)?;
 			if let Some(principal) = &endpoint.principal {
 				write!(w, ", caller: {}Principal", type_name(principal))?;
 			}
