@@ -19,8 +19,6 @@ pub struct Endpoint {
 pub struct Service {
 	pub id: String,
 	#[serde(default)]
-	pub principals: Vec<Principal>,
-	#[serde(default)]
 	pub endpoints: Vec<Endpoint>,
 }
 
