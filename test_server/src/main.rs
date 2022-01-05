@@ -17,7 +17,7 @@ struct MemUserPrincipalResolver {
 
 #[async_trait::async_trait(?Send)]
 impl HttpPrincipalResolver<UserPrincipal> for MemUserPrincipalResolver {
-	async fn resolve(&self, req: actix_web::HttpRequest) -> Result<UserPrincipal, actix_web::HttpResponse> {
+	async fn resolve(&self, req: actix_web::HttpRequest) -> Result<UserPrincipal, Error> {
 		req.headers()
 			.get("Authorization")
 			.and_then(|h| h.to_str().ok())
@@ -26,7 +26,7 @@ impl HttpPrincipalResolver<UserPrincipal> for MemUserPrincipalResolver {
 				let state = self.state.lock().unwrap();
 				state.sessions.get(t).cloned()
 			})
-			.ok_or_else(|| actix_web::HttpResponse::Unauthorized().finish())
+			.ok_or(Error::InvalidCredentials)
 	}
 }
 

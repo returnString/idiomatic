@@ -52,13 +52,44 @@ impl CodeGenerator for RustServer {
 
 		write!(w, "pub mod core {{")?;
 
+		write!(w, "#[derive(thiserror::Error, Debug)] pub enum Error {{",)?;
+		for error in &config.errors {
+			write!(w, "#[error(\"{}\")] {},", &error.id, type_name(&error.id))?;
+		}
+		write!(w, "#[error(\"internal_error\")] Internal(anyhow::Error)")?;
+		write!(w, "}}")?;
+
+		write!(w, "impl actix_web::error::ResponseError for Error {{")?;
+		write!(w, "fn error_response(&self) -> actix_web::HttpResponse {{")?;
+		write!(
+			w,
+			"actix_web::dev::HttpResponseBuilder::new(self.status_code()).body(self.to_string())"
+		)?;
+		write!(w, "}}")?;
+		write!(
+			w,
+			"fn status_code(&self) -> actix_web::http::StatusCode {{ match *self {{"
+		)?;
+		for (id, code) in config.errors.iter().filter_map(|e| e.code.map(|c| (&e.id, c))) {
+			write!(
+				w,
+				"Self::{} => actix_web::http::StatusCode::from_u16({}).unwrap(),",
+				type_name(id),
+				code
+			)?;
+		}
+		write!(w, "_ => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,")?;
+		write!(w, "}} }}")?;
+
+		write!(w, "}}")?;
+
 		write!(
 			w,
 			"#[async_trait::async_trait(?Send)] pub trait HttpPrincipalResolver<P> {{"
 		)?;
 		write!(
 			w,
-			"async fn resolve(&self, req: actix_web::HttpRequest) -> Result<P, actix_web::HttpResponse>;"
+			"async fn resolve(&self, req: actix_web::HttpRequest) -> Result<P, Error>;"
 		)?;
 		write!(w, "}}")?;
 
@@ -81,15 +112,6 @@ impl CodeGenerator for RustServer {
 	fn service(&self, service: &Service, w: &mut impl Write) -> Result<()> {
 		write!(w, "pub mod {} {{", service.id)?;
 		write!(w, "use crate::core::*;")?;
-
-		write!(
-			w,
-			"#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)] pub enum Error {{",
-		)?;
-		for error in &service.errors {
-			write!(w, "{},", type_name(&error.id))?;
-		}
-		write!(w, "}}")?;
 
 		for endpoint in &service.endpoints {
 			write!(
@@ -147,16 +169,13 @@ impl CodeGenerator for RustServer {
 				)?;
 			}
 
-			write!(w, ") -> impl actix_web::Responder {{")?;
+			write!(w, ") -> Result<actix_web::HttpResponse, Error> {{")?;
 			write!(w, "let result = svc.{}(&req", endpoint.id)?;
 			if endpoint.principal.is_some() {
-				write!(
-					w,
-					", match resolver.resolve(http_req).await {{ Ok(ref p) => p, Err(err) => return err }}"
-				)?;
+				write!(w, ", &resolver.resolve(http_req).await?")?;
 			}
-			write!(w, ").await;")?;
-			write!(w, "match result {{ Ok(r) => actix_web::HttpResponse::Ok().json(r), Err(err) => actix_web::HttpResponse::BadRequest().json(err) }}")?;
+			write!(w, ").await?;")?;
+			write!(w, "Ok(actix_web::HttpResponse::Ok().json(result))")?;
 			write!(w, "}}")?;
 		}
 
