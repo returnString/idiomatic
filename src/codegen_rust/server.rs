@@ -62,6 +62,8 @@ impl CodeGenerator for RustServer {
 		)?;
 		write!(w, "}}")?;
 
+		write!(w, "pub type Result<T> = std::result::Result<T, Error>;")?;
+
 		write!(w, "impl<T: std::error::Error + 'static> From<T> for Error {{")?;
 		write!(w, "fn from(err: T) -> Self {{ Error::Internal(Box::new(err)) }}")?;
 		write!(w, "}}")?;
@@ -94,10 +96,7 @@ impl CodeGenerator for RustServer {
 			w,
 			"#[async_trait::async_trait(?Send)] pub trait HttpPrincipalResolver<P> {{"
 		)?;
-		write!(
-			w,
-			"async fn resolve(&self, req: actix_web::HttpRequest) -> Result<P, Error>;"
-		)?;
+		write!(w, "async fn resolve(&self, req: actix_web::HttpRequest) -> Result<P>;")?;
 		write!(w, "}}")?;
 
 		for principal in &config.principals {
@@ -157,7 +156,7 @@ impl CodeGenerator for RustServer {
 			if let Some(principal) = &endpoint.principal {
 				write!(w, ", caller: &{}Principal", type_name(principal))?;
 			}
-			write!(w, ") -> Result<{}Response, Error>;", endpoint_type_prefix,)?;
+			write!(w, ") -> Result<{}Response>;", endpoint_type_prefix,)?;
 		}
 		write!(w, "}}")?;
 
@@ -176,7 +175,7 @@ impl CodeGenerator for RustServer {
 				)?;
 			}
 
-			write!(w, ") -> Result<actix_web::HttpResponse, Error> {{")?;
+			write!(w, ") -> Result<actix_web::HttpResponse> {{")?;
 			write!(w, "let result = svc.{}(&req", endpoint.id)?;
 			if endpoint.principal.is_some() {
 				write!(w, ", &resolver.resolve(http_req).await?")?;
