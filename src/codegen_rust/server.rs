@@ -52,11 +52,18 @@ impl CodeGenerator for RustServer {
 
 		write!(w, "pub mod core {{")?;
 
-		write!(w, "#[derive(thiserror::Error, Debug)] pub enum Error {{",)?;
+		write!(w, "#[derive(Debug, derive_more::Display)] pub enum Error {{")?;
 		for error in &config.errors {
-			write!(w, "#[error(\"{}\")] {},", &error.id, type_name(&error.id))?;
+			write!(w, "#[display(fmt = \"{}\")] {},", &error.id, type_name(&error.id))?;
 		}
-		write!(w, "#[error(\"internal_error\")] Internal(anyhow::Error)")?;
+		write!(
+			w,
+			"#[display(fmt = \"internal_error\")] Internal(Box<dyn std::error::Error>),"
+		)?;
+		write!(w, "}}")?;
+
+		write!(w, "impl<T: std::error::Error + 'static> From<T> for Error {{")?;
+		write!(w, "fn from(err: T) -> Self {{ Error::Internal(Box::new(err)) }}")?;
 		write!(w, "}}")?;
 
 		write!(w, "impl actix_web::error::ResponseError for Error {{")?;
