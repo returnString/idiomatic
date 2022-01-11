@@ -58,7 +58,11 @@ impl CodeGenerator for RustServer {
 		}
 		write!(
 			w,
-			"#[display(fmt = \"internal_error\")] Internal(Box<dyn std::error::Error>),"
+			"#[cfg(debug_assertions)] #[display(fmt = \"internal_error: {{}}\", \"_0\")] Internal(Box<dyn std::error::Error>),"
+		)?;
+		write!(
+			w,
+			"#[cfg(not(debug_assertions))] #[display(fmt = \"internal_error\")] Internal(Box<dyn std::error::Error>),"
 		)?;
 		write!(w, "}}")?;
 
