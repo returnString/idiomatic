@@ -8,11 +8,35 @@ pub enum Type {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EndpointMethod {
+	Get,
+	Post,
+}
+
+impl std::fmt::Display for EndpointMethod {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_str(match self {
+			Self::Get => "get",
+			Self::Post => "post",
+		})
+	}
+}
+
+impl Default for EndpointMethod {
+	fn default() -> Self {
+		Self::Post
+	}
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Endpoint {
 	pub id: String,
 	pub req: Option<IndexMap<String, Type>>,
 	pub res: Option<IndexMap<String, Type>>,
 	pub principal: Option<String>,
+	#[serde(default)]
+	pub method: EndpointMethod,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

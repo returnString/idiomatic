@@ -1,5 +1,5 @@
 use quantifun::auth::*;
-use quantifun::core::*;
+use quantifun::core::{Error, HttpPrincipalResolver, Result, UserPrincipal};
 use quantifun::{actix_web, async_trait};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -17,7 +17,7 @@ struct MemUserPrincipalResolver {
 
 #[async_trait::async_trait(?Send)]
 impl HttpPrincipalResolver<UserPrincipal> for MemUserPrincipalResolver {
-	async fn resolve(&self, req: actix_web::HttpRequest) -> Result<UserPrincipal, Error> {
+	async fn resolve(&self, req: actix_web::HttpRequest) -> Result<UserPrincipal> {
 		req.headers()
 			.get("Authorization")
 			.and_then(|h| h.to_str().ok())
@@ -36,13 +36,13 @@ struct MemAuthService {
 
 #[async_trait::async_trait]
 impl Service for MemAuthService {
-	async fn register(&self, req: &RegisterRequest) -> Result<RegisterResponse, Error> {
+	async fn register(&self, req: &RegisterRequest) -> Result<RegisterResponse> {
 		let mut state = self.state.lock().unwrap();
 		state.users.insert(req.email.clone(), req.password.clone());
 		Ok(RegisterResponse {})
 	}
 
-	async fn login(&self, req: &LoginRequest) -> Result<LoginResponse, Error> {
+	async fn login(&self, req: &LoginRequest) -> Result<LoginResponse> {
 		let mut state = self.state.lock().unwrap();
 		match state.users.get(&req.email) {
 			Some(password) if password == &req.password => (),
@@ -58,14 +58,19 @@ impl Service for MemAuthService {
 		Ok(LoginResponse { token })
 	}
 
-	async fn test(&self, _req: &TestRequest, caller: &UserPrincipal) -> Result<TestResponse, Error> {
+	async fn test(&self, _req: &TestRequest, caller: &UserPrincipal) -> Result<TestResponse> {
 		Ok(TestResponse {
 			principal_id: caller.id.clone(),
 		})
 	}
+
+	async fn verify(&self, req: &VerifyRequest) -> Result<VerifyResponse> {
+		println!("verifying {}", req.token);
+		Ok(VerifyResponse {})
+	}
 }
 
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> std::io::Result<()> {
 	let state = Arc::new(Mutex::new(State::default()));
 

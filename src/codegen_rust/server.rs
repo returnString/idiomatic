@@ -1,5 +1,5 @@
 use crate::codegen::CodeGenerator;
-use crate::{Config, Endpoint, Result, Service, Type};
+use crate::{Config, Endpoint, EndpointMethod, Result, Service, Type};
 use convert_case::{Case, Casing};
 use std::io::Write;
 
@@ -167,8 +167,12 @@ impl CodeGenerator for RustServer {
 		for endpoint in &service.endpoints {
 			write!(
 				w,
-				"async fn {}(svc: actix_web::web::Data<dyn Service>, req: actix_web::web::Json<{}Request>",
+				"async fn {}(svc: actix_web::web::Data<dyn Service>, req: actix_web::web::{}<{}Request>",
 				http_endpoint_fn(endpoint),
+				match endpoint.method {
+					EndpointMethod::Get => "Query",
+					EndpointMethod::Post => "Json",
+				},
 				type_name(&endpoint.id),
 			)?;
 
@@ -198,8 +202,9 @@ impl CodeGenerator for RustServer {
 		for endpoint in &service.endpoints {
 			write!(
 				w,
-				".service(actix_web::web::resource(\"{}\").route(actix_web::web::post().to({})))",
+				".service(actix_web::web::resource(\"{}\").route(actix_web::web::{}().to({})))",
 				endpoint.id,
+				endpoint.method,
 				http_endpoint_fn(endpoint)
 			)?;
 		}

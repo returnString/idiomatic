@@ -15,3 +15,7 @@ endpoints:
   principal: user
   res:
     principal_id: string
+- id: verify
+  method: get
+  req:
+    token: string
